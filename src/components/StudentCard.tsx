@@ -33,6 +33,20 @@ const StudentCard = ({ student, index, onClick }: StudentCardProps) => {
     return colors[course] || 'bg-gray-500';
   };
 
+  // Create a dynamic ring class based on the course
+  const getRingClass = (course: string) => {
+    const colorMap: Record<string, string> = {
+      'Computer Science': 'ring-education-blue',
+      'Data Science': 'ring-education-green',
+      'Graphic Design': 'ring-education-yellow',
+      'Business Administration': 'ring-purple-light',
+      'Psychology': 'ring-pink-500',
+      'Marketing': 'ring-education-red',
+    };
+    
+    return colorMap[course] || 'ring-gray-500';
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -46,9 +60,7 @@ const StudentCard = ({ student, index, onClick }: StudentCardProps) => {
         <div className="h-5" style={{ backgroundColor: getCourseColor(student.course) }} />
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <Avatar className="h-16 w-16 border-2 border-white ring-2 ring-offset-2" style={{
-              ringColor: getCourseColor(student.course),
-            }}>
+            <Avatar className={`h-16 w-16 border-2 border-white ring-2 ring-offset-2 ${getRingClass(student.course)}`}>
               <AvatarImage src={student.avatar} alt={student.name} />
               <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
             </Avatar>
