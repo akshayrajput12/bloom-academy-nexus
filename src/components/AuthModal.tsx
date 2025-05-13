@@ -11,18 +11,29 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: () => void;
 }
 
-const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
+  // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Register state
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  
   const [loading, setLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,18 +45,35 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     
     try {
       setLoading(true);
-      
-      // This is where we would normally connect to Supabase/Firebase
-      // For now we'll just simulate a login
-      setTimeout(() => {
-        toast.success('Successfully logged in!');
-        onLogin();
-        onClose();
-      }, 1500);
-      
+      await signIn(email, password);
+      onClose();
     } catch (error) {
-      toast.error('Login failed. Please try again.');
       console.error('Login error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!registerEmail || !registerPassword || !firstName || !lastName) {
+      toast.error('Please fill out all required fields');
+      return;
+    }
+    
+    if (registerPassword !== registerPasswordConfirm) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await signUp(registerEmail, registerPassword, firstName, lastName);
+      toast.success('Registration successful! Please check your email for verification.');
+      onClose();
+    } catch (error) {
+      console.error('Registration error:', error);
     } finally {
       setLoading(false);
     }
@@ -55,9 +83,9 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Login</DialogTitle>
+          <DialogTitle>Authentication</DialogTitle>
           <DialogDescription>
-            Login is required to add new students or view detailed information.
+            Login or create an account to add new students or view detailed information.
           </DialogDescription>
         </DialogHeader>
         
@@ -66,62 +94,107 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="register">Register</TabsTrigger>
+            </TabsList>
             
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="password">Password</Label>
-                <Button variant="link" className="p-0 h-auto text-xs">
-                  Forgot password?
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="password">Password</Label>
+                    <Button variant="link" className="p-0 h-auto text-xs" type="button">
+                      Forgot password?
+                    </Button>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Logging in..." : "Login"}
                 </Button>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+              </form>
+            </TabsContent>
             
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
-            </Button>
-            
-            <div className="text-center text-sm text-gray-500 mt-4">
-              <span>Don't have an account? </span>
-              <Button variant="link" className="p-0 h-auto">
-                Sign up
-              </Button>
-            </div>
-            
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" type="button" className="w-full">
-                Google
-              </Button>
-              <Button variant="outline" type="button" className="w-full">
-                GitHub
-              </Button>
-            </div>
-          </form>
+            <TabsContent value="register">
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="first-name">First Name</Label>
+                    <Input
+                      id="first-name"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="last-name">Last Name</Label>
+                    <Input
+                      id="last-name"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">Email</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">Password</Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="register-password-confirm">Confirm Password</Label>
+                  <Input
+                    id="register-password-confirm"
+                    type="password"
+                    value={registerPasswordConfirm}
+                    onChange={(e) => setRegisterPasswordConfirm(e.target.value)}
+                  />
+                </div>
+                
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Registering..." : "Register"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </DialogContent>
     </Dialog>

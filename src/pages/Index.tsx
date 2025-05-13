@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Student, Course, AuthState } from '@/types';
+import { Student, Course } from '@/types';
 import DashboardLayout from '@/components/DashboardLayout';
 import DashboardHeader from '@/components/DashboardHeader';
 import CourseFilter from '@/components/CourseFilter';
@@ -12,6 +12,8 @@ import DashboardStats from '@/components/DashboardStats';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const Index = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -24,56 +26,9 @@ const Index = () => {
   const [isStudentDetailOpen, setIsStudentDetailOpen] = useState(false);
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [auth, setAuth] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-  });
 
-  const { toast } = useToast();
-
-  // Check for existing session
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setAuth({
-          isAuthenticated: true,
-          user: {
-            name: session.user.email || 'User',
-            email: session.user.email || '',
-            avatar: "https://github.com/shadcn.png",
-          },
-        });
-      }
-    };
-    
-    getSession();
-    
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          setAuth({
-            isAuthenticated: true,
-            user: {
-              name: session.user.email || 'User',
-              email: session.user.email || '',
-              avatar: "https://github.com/shadcn.png",
-            },
-          });
-        } else {
-          setAuth({
-            isAuthenticated: false,
-            user: null,
-          });
-        }
-      }
-    );
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { toast: hookToast } = useToast();
+  const { user } = useAuth();
 
   // Fetch students and courses
   useEffect(() => {
@@ -138,17 +93,29 @@ const Index = () => {
         setFilteredStudents(transformedStudents);
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load data. Please try again.",
-          variant: "destructive",
-        });
+        toast.error("Failed to load data. Please try again.");
       } finally {
         setLoading(false);
       }
     };
     
     fetchData();
+    
+    // Set up real-time subscription for students
+    const channel = supabase
+      .channel('students-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'students' 
+      }, (payload) => {
+        fetchData();
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Apply filters whenever selectedCourse or searchQuery changes
@@ -185,7 +152,7 @@ const Index = () => {
   };
 
   const handleSelectStudent = (student: Student) => {
-    if (!auth.isAuthenticated) {
+    if (!user) {
       setIsAuthModalOpen(true);
       return;
     }
@@ -194,94 +161,16 @@ const Index = () => {
   };
 
   const handleAddStudent = () => {
-    if (!auth.isAuthenticated) {
+    if (!user) {
       setIsAuthModalOpen(true);
       return;
     }
     setIsStudentFormOpen(true);
   };
 
-  const handleStudentAdded = async (student: Student) => {
-    try {
-      // Add student to Supabase
-      const { data, error } = await supabase
-        .from('students')
-        .insert({
-          name: student.name,
-          email: student.email,
-          course: student.course,
-          enrollment_date: student.enrollmentDate,
-          avatar: student.avatar,
-          grade: student.grade,
-          attendance: student.attendance,
-          bio: student.bio,
-          phone: student.phone,
-          address: student.address
-        })
-        .select();
-        
-      if (error) throw error;
-      
-      if (data && data[0]) {
-        // Transformed added student to match Student type
-        const addedStudent: Student = {
-          id: data[0].id,
-          name: data[0].name,
-          email: data[0].email,
-          course: data[0].course,
-          enrollmentDate: data[0].enrollment_date,
-          avatar: data[0].avatar || "https://github.com/shadcn.png",
-          grade: data[0].grade,
-          attendance: data[0].attendance,
-          bio: data[0].bio,
-          phone: data[0].phone,
-          address: data[0].address
-        };
-        
-        setStudents(prev => [addedStudent, ...prev]);
-        
-        // Update course student count
-        setCourses(prev => prev.map(course => 
-          course.name === addedStudent.course 
-            ? { ...course, students: course.students + 1 }
-            : course
-        ));
-        
-        toast({
-          title: "Success",
-          description: "Student added successfully",
-        });
-      }
-    } catch (error) {
-      console.error("Error adding student:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add student. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogin = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (session) {
-      setAuth({
-        isAuthenticated: true,
-        user: {
-          name: session.user.email || 'User',
-          email: session.user.email || '',
-          avatar: "https://github.com/shadcn.png",
-        },
-      });
-      
-      toast({
-        title: "Logged in",
-        description: "You are now logged in",
-      });
-    } else {
-      // We'll handle login through the AuthModal component
-    }
+  const handleStudentAdded = (student: Student) => {
+    // We'll fetch the data from Supabase
+    toast.success("Student added successfully");
   };
 
   return (
@@ -294,7 +183,6 @@ const Index = () => {
         <DashboardHeader 
           onSearch={handleSearch} 
           onAddStudent={handleAddStudent}
-          isAuthenticated={auth.isAuthenticated}
           onLogin={() => setIsAuthModalOpen(true)}
         />
         
@@ -330,7 +218,6 @@ const Index = () => {
         <AuthModal 
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onLogin={handleLogin}
         />
       </motion.div>
     </DashboardLayout>

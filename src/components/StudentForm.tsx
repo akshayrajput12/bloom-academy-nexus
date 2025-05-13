@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StudentFormProps {
   isOpen: boolean;
@@ -66,21 +67,52 @@ const StudentForm = ({ isOpen, onClose, onSubmit }: StudentFormProps) => {
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
-      // We'd typically make an API call here
-      setTimeout(() => {
-        const newStudent = {
-          id: Math.random().toString(36).substring(2, 9),
-          ...data,
-        };
-        onSubmit(newStudent as Student);
-        toast.success("Student added successfully!");
-        form.reset();
-        onClose();
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+      
+      // Add student to Supabase
+      const { data: studentData, error } = await supabase
+        .from('students')
+        .insert({
+          name: data.name,
+          email: data.email,
+          course: data.course,
+          enrollment_date: data.enrollmentDate,
+          avatar: data.avatar,
+          grade: data.grade,
+          attendance: data.attendance,
+          bio: data.bio || null,
+          phone: data.phone || null,
+          address: data.address || null
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Transform to match Student type
+      const newStudent: Student = {
+        id: studentData.id,
+        name: studentData.name,
+        email: studentData.email,
+        course: studentData.course,
+        enrollmentDate: studentData.enrollment_date,
+        avatar: studentData.avatar || "https://github.com/shadcn.png",
+        grade: studentData.grade,
+        attendance: studentData.attendance,
+        bio: studentData.bio,
+        phone: studentData.phone,
+        address: studentData.address
+      };
+      
+      onSubmit(newStudent);
+      toast.success("Student added successfully!");
+      form.reset();
+      onClose();
+    } catch (error: any) {
       console.error("Error adding student:", error);
-      toast.error("Failed to add student. Please try again.");
+      toast.error(`Failed to add student: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };
