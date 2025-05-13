@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, User, Mail, BookOpen, GraduationCap, Phone, Info, Home } from 'lucide-react';
+import { CalendarIcon, User, Mail, BookOpen, GraduationCap, Phone, Info, Home, CalendarCheck } from 'lucide-react';
 import { Student } from '@/types';
 import { 
   Dialog,
