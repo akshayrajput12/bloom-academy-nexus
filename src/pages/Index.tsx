@@ -30,75 +30,76 @@ const Index = () => {
   const { toast: hookToast } = useToast();
   const { user } = useAuth();
 
-  // Fetch students and courses
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+  // Fetch data function
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch courses from Supabase
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('courses')
+        .select('*');
         
-        // Fetch courses from Supabase
-        const { data: coursesData, error: coursesError } = await supabase
-          .from('courses')
-          .select('*');
-          
-        if (coursesError) {
-          throw coursesError;
-        }
-        
-        // Transform courses data to match Course type
-        const transformedCourses: Course[] = coursesData.map(course => ({
-          id: course.id,
-          name: course.name,
-          students: 0, // We'll update this count below
-          color: course.color,
-        }));
-        
-        // Fetch students from Supabase
-        const { data: studentsData, error: studentsError } = await supabase
-          .from('students')
-          .select('*');
-          
-        if (studentsError) {
-          throw studentsError;
-        }
-        
-        // Transform students data to match Student type
-        const transformedStudents: Student[] = studentsData.map(student => ({
-          id: student.id,
-          name: student.name,
-          email: student.email,
-          course: student.course,
-          enrollmentDate: student.enrollment_date,
-          avatar: student.avatar || "https://github.com/shadcn.png",
-          grade: student.grade,
-          attendance: student.attendance,
-          bio: student.bio,
-          phone: student.phone,
-          address: student.address,
-        }));
-        
-        // Count students per course
-        const studentCounts: Record<string, number> = {};
-        transformedStudents.forEach(student => {
-          studentCounts[student.course] = (studentCounts[student.course] || 0) + 1;
-        });
-        
-        // Update course student counts
-        transformedCourses.forEach(course => {
-          course.students = studentCounts[course.name] || 0;
-        });
-        
-        setCourses(transformedCourses);
-        setStudents(transformedStudents);
-        setFilteredStudents(transformedStudents);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to load data. Please try again.");
-      } finally {
-        setLoading(false);
+      if (coursesError) {
+        throw coursesError;
       }
-    };
-    
+      
+      // Transform courses data to match Course type
+      const transformedCourses: Course[] = coursesData.map(course => ({
+        id: course.id,
+        name: course.name,
+        students: 0, // We'll update this count below
+        color: course.color,
+      }));
+      
+      // Fetch students from Supabase
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('*');
+        
+      if (studentsError) {
+        throw studentsError;
+      }
+      
+      // Transform students data to match Student type
+      const transformedStudents: Student[] = studentsData.map(student => ({
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        course: student.course,
+        enrollmentDate: student.enrollment_date,
+        avatar: student.avatar || "https://github.com/shadcn.png",
+        grade: student.grade,
+        attendance: student.attendance,
+        bio: student.bio,
+        phone: student.phone,
+        address: student.address,
+      }));
+      
+      // Count students per course
+      const studentCounts: Record<string, number> = {};
+      transformedStudents.forEach(student => {
+        studentCounts[student.course] = (studentCounts[student.course] || 0) + 1;
+      });
+      
+      // Update course student counts
+      transformedCourses.forEach(course => {
+        course.students = studentCounts[course.name] || 0;
+      });
+      
+      setCourses(transformedCourses);
+      setStudents(transformedStudents);
+      setFilteredStudents(transformedStudents);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
     fetchData();
     
     // Set up real-time subscription for students
@@ -109,7 +110,74 @@ const Index = () => {
         schema: 'public', 
         table: 'students' 
       }, (payload) => {
-        fetchData();
+        console.log('Realtime update received:', payload);
+        
+        if (payload.eventType === 'INSERT') {
+          const newStudent = payload.new as any;
+          
+          const transformedStudent: Student = {
+            id: newStudent.id,
+            name: newStudent.name,
+            email: newStudent.email,
+            course: newStudent.course,
+            enrollmentDate: newStudent.enrollment_date,
+            avatar: newStudent.avatar || "https://github.com/shadcn.png",
+            grade: newStudent.grade,
+            attendance: newStudent.attendance,
+            bio: newStudent.bio,
+            phone: newStudent.phone,
+            address: newStudent.address,
+          };
+          
+          setStudents(prev => [...prev, transformedStudent]);
+          toast.success(`New student added: ${newStudent.name}`);
+          
+          // Update course student counts
+          setCourses(prevCourses => {
+            return prevCourses.map(course => {
+              if (course.name === newStudent.course) {
+                return { ...course, students: course.students + 1 };
+              }
+              return course;
+            });
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          // Handle update event
+          const updatedStudent = payload.new as any;
+          setStudents(prev => prev.map(student => 
+            student.id === updatedStudent.id 
+              ? {
+                  ...student,
+                  name: updatedStudent.name,
+                  email: updatedStudent.email,
+                  course: updatedStudent.course,
+                  enrollmentDate: updatedStudent.enrollment_date,
+                  avatar: updatedStudent.avatar || "https://github.com/shadcn.png",
+                  grade: updatedStudent.grade,
+                  attendance: updatedStudent.attendance,
+                  bio: updatedStudent.bio,
+                  phone: updatedStudent.phone,
+                  address: updatedStudent.address
+                }
+              : student
+          ));
+          toast.success(`Student updated: ${updatedStudent.name}`);
+        } else if (payload.eventType === 'DELETE') {
+          // Handle delete event
+          const deletedStudent = payload.old as any;
+          setStudents(prev => prev.filter(student => student.id !== deletedStudent.id));
+          toast.success(`Student removed: ${deletedStudent.name}`);
+          
+          // Update course student counts
+          setCourses(prevCourses => {
+            return prevCourses.map(course => {
+              if (course.name === deletedStudent.course) {
+                return { ...course, students: Math.max(0, course.students - 1) };
+              }
+              return course;
+            });
+          });
+        }
       })
       .subscribe();
     
@@ -179,6 +247,7 @@ const Index = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
+        className="w-full"
       >
         <DashboardHeader 
           onSearch={handleSearch} 

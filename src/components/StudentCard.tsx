@@ -1,10 +1,14 @@
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Student } from '@/types';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { CalendarCheck, BookOpen } from 'lucide-react';
+import { 
+  Card, 
+  CardContent, 
+  CardFooter, 
+  CardHeader,
+} from '@/components/ui/card';
 
 interface StudentCardProps {
   student: Student;
@@ -13,38 +17,44 @@ interface StudentCardProps {
 }
 
 const StudentCard = ({ student, index, onClick }: StudentCardProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Generate initials from student name
   const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part.charAt(0))
-      .join('');
+    const nameParts = name.split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   };
-
-  const getCourseColor = (course: string) => {
-    const colors: Record<string, string> = {
-      'Computer Science': 'bg-education-blue',
-      'Data Science': 'bg-education-green',
-      'Graphic Design': 'bg-education-yellow',
-      'Business Administration': 'bg-purple-light',
-      'Psychology': '#EC4899',
-      'Marketing': 'bg-education-red',
-    };
+  
+  // Get color based on the first letter of student name
+  const getColor = () => {
+    const colors = [
+      'from-blue-400 to-blue-600',
+      'from-green-400 to-green-600',
+      'from-purple-400 to-purple-600',
+      'from-yellow-400 to-yellow-600',
+      'from-pink-400 to-pink-600',
+      'from-indigo-400 to-indigo-600',
+      'from-red-400 to-red-600',
+      'from-cyan-400 to-cyan-600'
+    ];
     
-    return colors[course] || 'bg-gray-500';
+    const index = student.name.charCodeAt(0) % colors.length;
+    return colors[index];
   };
-
-  // Create a dynamic ring class based on the course
-  const getRingClass = (course: string) => {
-    const colorMap: Record<string, string> = {
-      'Computer Science': 'ring-education-blue',
-      'Data Science': 'ring-education-green',
-      'Graphic Design': 'ring-education-yellow',
-      'Business Administration': 'ring-purple-light',
-      'Psychology': 'ring-pink-500',
-      'Marketing': 'ring-education-red',
-    };
-    
-    return colorMap[course] || 'ring-gray-500';
+  
+  const getGradeColor = (grade: string) => {
+    const firstChar = grade.charAt(0);
+    switch(firstChar) {
+      case 'A': return 'bg-green-100 text-green-800';
+      case 'B': return 'bg-blue-100 text-blue-800';
+      case 'C': return 'bg-yellow-100 text-yellow-800';
+      case 'D': return 'bg-orange-100 text-orange-800';
+      case 'F': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   return (
@@ -52,40 +62,59 @@ const StudentCard = ({ student, index, onClick }: StudentCardProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      whileHover={{ y: -5 }}
-      onClick={() => onClick(student)}
-      className="cursor-pointer"
     >
-      <Card className="overflow-hidden h-full card-shadow">
-        <div className="h-5" style={{ backgroundColor: getCourseColor(student.course) }} />
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <Avatar className={`h-16 w-16 border-2 border-white ring-2 ring-offset-2 ${getRingClass(student.course)}`}>
-              <AvatarFallback className="bg-gradient-to-br from-purple-500/90 to-purple-700 text-white text-xl font-semibold">
-                {getInitials(student.name)}
-              </AvatarFallback>
-            </Avatar>
-            <Badge variant="outline" className="text-sm font-medium">
-              Grade: {student.grade}
-            </Badge>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold leading-none mb-1">{student.name}</h3>
-            <p className="text-sm text-muted-foreground mb-3">{student.email}</p>
-            
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <span>{student.course}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-                <span>Attendance: {student.attendance}%</span>
-              </div>
+      <Card 
+        className="overflow-hidden h-full card-shadow hover:shadow-lg transition-all duration-300 cursor-pointer"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => onClick(student)}
+      >
+        <CardHeader className="p-0">
+          <div className="relative h-32 sm:h-36 w-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+            <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${getColor()} flex items-center justify-center text-white text-2xl font-bold`}>
+              {getInitials(student.name)}
             </div>
+            
+            <motion.div 
+              className="absolute bottom-3 right-3"
+              animate={{ scale: isHovered ? 1.05 : 1 }}
+            >
+              <Badge className={`${getGradeColor(student.grade)} font-semibold text-xs`}>
+                Grade: {student.grade}
+              </Badge>
+            </motion.div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-4 pb-2">
+          <h3 className="font-semibold text-lg mb-1 line-clamp-1">{student.name}</h3>
+          <p className="text-sm text-gray-500 mb-2 line-clamp-1">{student.email}</p>
+          
+          <div className="flex justify-between items-center">
+            <Badge variant="outline" className="bg-accent text-accent-foreground text-xs font-normal">
+              {student.course}
+            </Badge>
+            <span className="text-xs text-gray-500">
+              {student.attendance}% attendance
+            </span>
           </div>
         </CardContent>
+        
+        <CardFooter className="pt-1 pb-3 px-4">
+          <div className="w-full h-[6px] bg-gray-100 rounded-full overflow-hidden">
+            <motion.div 
+              className={`h-full bg-gradient-to-r ${
+                student.attendance >= 90 ? 'from-green-400 to-green-500' :
+                student.attendance >= 75 ? 'from-blue-400 to-blue-500' :
+                student.attendance >= 60 ? 'from-yellow-400 to-yellow-500' : 
+                'from-red-400 to-red-500'
+              }`}
+              initial={{ width: 0 }}
+              animate={{ width: `${student.attendance}%` }}
+              transition={{ duration: 1, delay: index * 0.05 + 0.3 }}
+            />
+          </div>
+        </CardFooter>
       </Card>
     </motion.div>
   );
