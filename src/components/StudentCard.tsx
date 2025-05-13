@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion';
 import { Student } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { CalendarCheck, BookOpen } from 'lucide-react';
 
@@ -61,8 +61,9 @@ const StudentCard = ({ student, index, onClick }: StudentCardProps) => {
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
             <Avatar className={`h-16 w-16 border-2 border-white ring-2 ring-offset-2 ${getRingClass(student.course)}`}>
-              <AvatarImage src={student.avatar} alt={student.name} />
-              <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
+              <AvatarFallback className="bg-gradient-to-br from-purple-500/90 to-purple-700 text-white text-xl font-semibold">
+                {getInitials(student.name)}
+              </AvatarFallback>
             </Avatar>
             <Badge variant="outline" className="text-sm font-medium">
               Grade: {student.grade}
