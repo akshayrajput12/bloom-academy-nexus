@@ -9,6 +9,7 @@ import StudentDetail from '@/components/StudentDetail';
 import StudentForm from '@/components/StudentForm';
 import AuthModal from '@/components/AuthModal';
 import DashboardStats from '@/components/DashboardStats';
+import SEOHelmet from '@/components/SEOHelmet';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -243,6 +244,7 @@ const Index = () => {
 
   return (
     <DashboardLayout>
+      <SEOHelmet />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
